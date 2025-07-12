@@ -1,0 +1,223 @@
+generator client {
+    provider = "prisma-client-js"
+    binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
+    output = "/home/ubuntu/relationship_manager/app/node_modules/.prisma/client"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+model Contact {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Basic Info
+  firstName   String
+  lastName    String?
+  nickname    String?
+  email       String?
+  phone       String?
+  birthday    DateTime?
+  location    String?
+  notes       String?
+  profilePhoto String?
+  coverImage  String?
+
+  // Relationship
+  relationshipType String?
+  
+  // Emergency Info
+  bloodGroup      String?
+  medicalConditions String?
+  allergies       String?
+  
+  // Relations
+  interactions    Interaction[]
+  customFields    CustomField[]
+  emergencyContacts EmergencyContact[]
+  groupMemberships GroupMembership[]
+  contactTags     ContactTag[]
+  albumShares     AlbumShare[]
+  reminders       Reminder[]
+
+  @@map("contacts")
+}
+
+model CustomField {
+  id        String  @id @default(cuid())
+  contactId String
+  fieldName String
+  fieldValue String
+  
+  contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  
+  @@map("custom_fields")
+}
+
+model EmergencyContact {
+  id          String  @id @default(cuid())
+  contactId   String
+  name        String
+  relationship String
+  phone       String
+  email       String?
+  
+  contact     Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  
+  @@map("emergency_contacts")
+}
+
+model Interaction {
+  id          String      @id @default(cuid())
+  contactId   String
+  date        DateTime    @default(now())
+  medium      InteractionMedium
+  title       String?
+  notes       String?
+  duration    Int?        // in minutes
+  location    String?
+  
+  contact     Contact     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  
+  @@map("interactions")
+}
+
+enum InteractionMedium {
+  CALL
+  TEXT
+  EMAIL
+  IN_PERSON
+  VIDEO_CALL
+  SOCIAL_MEDIA
+  OTHER
+}
+
+model Group {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  description String?
+  color       String?   // hex color for visual distinction
+  createdAt   DateTime  @default(now())
+  
+  members     GroupMembership[]
+  albumShares AlbumShare[]
+  
+  @@map("groups")
+}
+
+model GroupMembership {
+  id        String  @id @default(cuid())
+  contactId String
+  groupId   String
+  
+  contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  group     Group   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  
+  @@unique([contactId, groupId])
+  @@map("group_memberships")
+}
+
+model Tag {
+  id          String      @id @default(cuid())
+  name        String      @unique
+  color       String?     // hex color for visual distinction
+  createdAt   DateTime    @default(now())
+  
+  contactTags ContactTag[]
+  
+  @@map("tags")
+}
+
+model ContactTag {
+  id        String  @id @default(cuid())
+  contactId String
+  tagId     String
+  
+  contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  
+  @@unique([contactId, tagId])
+  @@map("contact_tags")
+}
+
+model Album {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  coverImage  String?
+  createdAt   DateTime  @default(now())
+  
+  media       Media[]
+  shares      AlbumShare[]
+  
+  @@map("albums")
+}
+
+model Media {
+  id          String    @id @default(cuid())
+  albumId     String
+  fileName    String
+  originalName String
+  fileSize    Int
+  mimeType    String
+  url         String
+  caption     String?
+  location    String?
+  dateTaken   DateTime?
+  createdAt   DateTime  @default(now())
+  
+  album       Album     @relation(fields: [albumId], references: [id], onDelete: Cascade)
+  
+  @@map("media")
+}
+
+model AlbumShare {
+  id        String  @id @default(cuid())
+  albumId   String
+  contactId String?
+  groupId   String?
+  
+  album     Album   @relation(fields: [albumId], references: [id], onDelete: Cascade)
+  contact   Contact? @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  group     Group?  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  
+  @@map("album_shares")
+}
+
+model Reminder {
+  id          String        @id @default(cuid())
+  contactId   String?
+  type        ReminderType
+  title       String
+  message     String?
+  dueDate     DateTime
+  isRecurring Boolean       @default(false)
+  recurringPattern String?  // e.g., "yearly", "monthly"
+  isCompleted Boolean       @default(false)
+  createdAt   DateTime      @default(now())
+  
+  contact     Contact?      @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  
+  @@map("reminders")
+}
+
+enum ReminderType {
+  BIRTHDAY
+  ANNIVERSARY
+  FOLLOW_UP
+  CUSTOM
+}
+
+model NotificationSettings {
+  id                String  @id @default(cuid())
+  emailNotifications Boolean @default(true)
+  browserNotifications Boolean @default(true)
+  birthdayReminders Boolean @default(true)
+  followUpReminders Boolean @default(true)
+  emailAddress      String?
+  
+  @@map("notification_settings")
+}
